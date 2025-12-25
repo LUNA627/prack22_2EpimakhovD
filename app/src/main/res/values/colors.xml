@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="main_fon">#fce38a</color>
+    <color name="text_fon">#f6416c</color>
+    <color name="hint_fon">#fce38a</color>
+    <color name="back_fon_green">#95e1d3</color>
+    <color name="fon_border">#9896f1</color>
+    <color name="fon_border_text">#7066f0</color>
+</resources>
