@@ -7,9 +7,16 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class PokemonListAdapter(
-    private val pokemons: List<Pokemon>,
+    private val pokemons: MutableList<Pokemon>, // теперь MutableList
     private val onItemClick: (Pokemon) -> Unit
 ) : RecyclerView.Adapter<PokemonListAdapter.ViewHolder>() {
+
+    // Новый метод для обновления данных извне
+    fun updateList(newList: List<Pokemon>) {
+        pokemons.clear()
+        pokemons.addAll(newList)
+        notifyDataSetChanged()
+    }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val nameText: TextView = itemView.findViewById(android.R.id.text1)

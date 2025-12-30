@@ -2,9 +2,7 @@ package com.example.poke
 
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
-import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -12,14 +10,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContentProviderCompat.requireContext
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
-import com.google.android.material.textfield.TextInputEditText
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
+import kotlin.collections.joinToString
 
 
 class MainActivity : AppCompatActivity() {
@@ -33,15 +27,37 @@ class MainActivity : AppCompatActivity() {
     private val prefs by lazy { getSharedPreferences("saved_pokemons", Context.MODE_PRIVATE) }
     private val gson = Gson()
 
+    private lateinit var db: PokemonDatabase
+    private lateinit var dao: PokemonDao
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
+        db = PokemonDatabase.getDatabase(this)
+        dao = db.pokemonDao()
+
         initViews()
         setupClick()
 
+    }
+
+    private fun fetchPokemon(nameOrId: String) {
+        lifecycleScope.launch {
+            try {
+                val pokemon = RetrofitClient.apiService.getPokemon(nameOrId)
+                displayPokemon(pokemon)
+
+                // Сохраняем в Room (вместо SharedPreferences)
+                dao.insertPokemon(pokemon)
+
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Покемон не найден", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun initViews() {
@@ -69,44 +85,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun fetchPokemon(nameOrId: String) {
+
+    private fun savePokemonToDb(pokemon: Pokemon) {
         lifecycleScope.launch {
-            try {
-                val pokemon = RetrofitClient.apiService.getPokemon(nameOrId)
-                displayPokemon(pokemon)
-                savePokemonToJson(pokemon)
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Покемон не найден", Toast.LENGTH_SHORT).show()
-                e.printStackTrace()
-            }
+            val typesString = pokemon.types.joinToString(",") { it.type.name }
+            val entity = Pokemon(
+                id = pokemon.id,
+                name = pokemon.name,
+                height = pokemon.height,
+                weight = pokemon.weight,
+                base_experience = pokemon.base_experience,
+                types = typesString,
+                spriteUrl = pokemon.sprites.front_default
+            )
+            val db = AppDatabase.getDatabase(this@MainActivity)
+            db.pokemonDao().insert(entity)
         }
-    }
-
-    private fun displayPokemon(pokemon: Pokemon) {
-        val imageUrl = pokemon.sprites.front_default
-        if (!imageUrl.isNullOrEmpty()) {
-            Glide.with(this).load(imageUrl).into(imagePokemon)
-            imagePokemon.visibility = View.VISIBLE
-        }
-
-        val types = pokemon.types.joinToString(", ") { it.type.name }
-        val text = """
-            Имя: ${pokemon.name.capitalize()}
-            ID: ${pokemon.id}
-            Рост: ${pokemon.height} дм
-            Вес: ${pokemon.weight} г
-            Опыт: ${pokemon.base_experience}
-            Тип(ы): $types
-        """.trimIndent()
-
-        textResult.text = text
-        textResult.visibility = View.VISIBLE
-    }
-
-    private fun savePokemonToJson(pokemon: Pokemon) {
-        val json = gson.toJson(pokemon)
-        // Сохраняем по ключу, например, по ID
-        prefs.edit().putString("pokemon_${pokemon.id}", json).apply()
     }
 
 }

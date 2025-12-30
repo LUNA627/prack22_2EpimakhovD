@@ -14,41 +14,31 @@ class AllPokemonActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: PokemonListAdapter
-    private val savedPokemons = mutableListOf<Pokemon>()
 
-    private val prefs by lazy { getSharedPreferences("saved_pokemons", Context.MODE_PRIVATE) }
     private val gson = Gson()
+    private lateinit var db: PokemonDatabase
+    private lateinit var dao: PokemonDao
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_all_pokemon)
 
+        db = PokemonDatabase.getDatabase(this)
+        dao = db.pokemonDao()
+
         recyclerView = findViewById(R.id.recyclerView)
-        adapter = PokemonListAdapter(savedPokemons) { pokemon ->
-        }
+        // Передаём пустой список — данные придут через Flow
+        adapter = PokemonListAdapter(mutableListOf()) { /* можно открыть детали */ }
         recyclerView.adapter = adapter
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        loadSavedPokemons()
-    }
-
-    private fun loadSavedPokemons() {
-        savedPokemons.clear()
-        val keys = prefs.all.keys
-        for (key in keys) {
-            if (key.startsWith("pokemon_")) {
-                val json = prefs.getString(key, null)
-                if (json != null) {
-                    try {
-                        val pokemon = gson.fromJson(json, Pokemon::class.java)
-                        savedPokemons.add(pokemon)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+        // Подписываемся на изменения в базе
+        lifecycleScope.launch {
+            lifecycleScope.launch {
+                dao.getAllPokemons().collect { pokemons ->
+                    adapter.updateList(pokemons)
                 }
             }
         }
-        savedPokemons.sortBy { it.id }
-        adapter.notifyDataSetChanged()
     }
 }
